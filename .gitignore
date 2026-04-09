@@ -1,0 +1,28 @@
+# Build
+bin/
+obj/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# VS / Rider
+.vs/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# NuGet
+*.nupkg
+
+# User files
+*.user
+*.suo
+
+# DLL
+*.dll

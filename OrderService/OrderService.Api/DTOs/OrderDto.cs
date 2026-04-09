@@ -1,14 +1,12 @@
-namespace OrderService.Api.Models;
+namespace OrderService.Api.DTOs;
 
-public class Order
+public class OrderDto
 {
     public int Id { get; set; }
     public decimal Total { get; set; }
     public int CustomerId { get; set; }
     public int ProductId { get; set; }
     public int Quantity { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
-    // 🔥 订单状态：Pending, Cancelled
+    public DateTime CreatedAt { get; set; }
     public string Status { get; set; } = "Pending";
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CustomerService.Api.Data;
 using CustomerService.Api.Models;
+using CustomerService.Api.DTOs;
 
 namespace CustomerService.Api.Controllers;
 
@@ -17,30 +18,56 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Customer>>> List()
+    public async Task<ActionResult<IEnumerable<CustomerDto>>> List()
     {
-        return Ok(await _context.Customers.ToListAsync());
+        var customers = await _context.Customers
+            .Select(c => new CustomerDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Email = c.Email
+            })
+            .ToListAsync();
+
+        return Ok(customers);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<Customer>> GetById(int id)
+    public async Task<ActionResult<CustomerDto>> GetById(int id)
     {
         var customer = await _context.Customers.FindAsync(id);
 
         if (customer == null)
             return NotFound();
 
-        return Ok(customer);
+        return Ok(new CustomerDto
+        {
+            Id = customer.Id,
+            Name = customer.Name,
+            Email = customer.Email
+        });
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(Customer customer)
+    public async Task<ActionResult<CustomerDto>> Create(CustomerDto dto)
     {
+        var customer = new Customer
+        {
+            Name = dto.Name,
+            Email = dto.Email
+        };
+
         await _context.Customers.AddAsync(customer);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById),
-            new { id = customer.Id }, customer);
+        var response = new CustomerDto
+        {
+            Id = customer.Id,
+            Name = customer.Name,
+            Email = customer.Email
+        };
+
+        return CreatedAtAction(nameof(GetById), new { id = customer.Id }, response);
     }
 }
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ProductService.Api.Data;
+using ProductService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +19,13 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+var consumer = new RabbitMQConsumer(app.Services);
+consumer.Start();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.MapControllers();
+
 
 app.Run();

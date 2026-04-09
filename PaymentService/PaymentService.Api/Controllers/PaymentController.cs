@@ -23,9 +23,20 @@ public class PaymentController : ControllerBase
   }
 
   [HttpGet]
-  public async Task<ActionResult<IEnumerable<Payment>>> GetAll()
+  public async Task<ActionResult<IEnumerable<PaymentDto>>> GetAll()
   {
-    return await _context.Payments.ToListAsync();
+    var payments = await _context.Payments
+      .Select(p => new PaymentDto
+      {
+        Id = p.Id,
+        OrderId = p.OrderId,
+        Amount = p.Amount,
+        Status = p.Status,
+        CreatedAt = p.CreatedAt
+      })
+      .ToListAsync();
+
+    return Ok(payments);
   }
 
   [HttpPost]
@@ -50,7 +61,14 @@ public class PaymentController : ControllerBase
     await _context.Payments.AddAsync(payment);
     await _context.SaveChangesAsync();
 
-    return Ok(payment);
+    return Ok(new PaymentDto
+    {
+      Id = payment.Id,
+      OrderId = payment.OrderId,
+      Amount = payment.Amount,
+      Status = payment.Status,
+      CreatedAt = payment.CreatedAt
+    });
   }
 
   // [HttpPost]
