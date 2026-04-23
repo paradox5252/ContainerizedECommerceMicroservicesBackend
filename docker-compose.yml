@@ -45,7 +45,7 @@ services:
     depends_on:
       - customerservice
       - productservice
-      - rabbitmq   # ✅ 关键！
+      - rabbitmq   
     volumes:
       - ./OrderService/OrderService.Api/Data:/app/Data
 
@@ -82,6 +82,16 @@ services:
       - productservice
       - orderservice
       - paymentservice
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "7010:80"
+    depends_on:
+      - apigateway
       
 # version: "3.8"
 

@@ -29,7 +29,6 @@ public class OrdersController : ControllerBase
         _customerClient = customerClient;
         _productClient = productClient;
 
-        // ✅ 按老师写法（但改成 docker hostname）
         _publisher = new RabbitMQPublisher("rabbitmq", "order_created");
         _cancelPublisher = new RabbitMQPublisher("rabbitmq", "order_cancelled");
         // _publisher = new RabbitMQPublisher("localhost", "order_created");

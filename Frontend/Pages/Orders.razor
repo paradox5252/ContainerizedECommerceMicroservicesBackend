@@ -1,0 +1,171 @@
+@page "/orders"
+
+@inject ApiService Api
+
+<h3>Orders</h3>
+
+@if (orders == null)
+{
+  <p>Loading...</p>
+}
+else
+{
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Customer ID</th>
+          <th>Product ID</th>
+          <th>Quantity</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var order in orders)
+        {
+          <tr class="@(order.Status == "Cancelled" ? "table-danger" : string.Empty)">
+            <td>@order.Id</td>
+            <td>@order.CustomerId</td>
+            <td>@order.ProductId</td>
+            <td>@order.Quantity</td>
+            <td>$@order.Total</td>
+            <td>
+              @if (order.Status == "Cancelled")
+              {
+                <span class="badge rounded-pill text-bg-danger">Cancelled</span>
+              }
+              else if (order.Status == "Pending")
+              {
+                <span class="badge rounded-pill text-bg-warning text-dark">Created</span>
+              }
+              else
+              {
+                <span class="badge rounded-pill text-bg-secondary">@order.Status</span>
+              }
+            </td>
+            <td>
+              <button
+                class="btn btn-outline-danger btn-sm"
+                disabled="@(order.Status == "Cancelled")"
+                @onclick="() => CancelOrderAsync(order.Id)">
+                @(order.Status == "Cancelled" ? "Cancelled" : "Cancel")
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<hr />
+
+<h4>Create Order</h4>
+
+<div class="container">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label">Customer ID</label>
+      <InputNumber class="form-control no-spinner" @bind-Value="newOrderCustomerId" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Product ID</label>
+      <InputNumber class="form-control no-spinner" @bind-Value="newOrderProductId" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Quantity</label>
+      <InputNumber class="form-control no-spinner" @bind-Value="newOrderQuantity" />
+    </div>
+    <div class="col-md-3 d-grid">
+      <button class="btn btn-primary" @onclick="CreateOrderAsync">Create</button>
+    </div>
+  </div>
+
+  @if (!string.IsNullOrWhiteSpace(createStatusMessage))
+  {
+    <p class="mt-2">@createStatusMessage</p>
+  }
+
+  @if (!string.IsNullOrWhiteSpace(cancelStatusMessage))
+  {
+    <p class="mt-2">@cancelStatusMessage</p>
+  }
+</div>
+
+<style>
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+
+  .table-danger td {
+    color: #842029;
+  }
+</style>
+
+@code {
+  private List<OrderDto>? orders;
+  private int newOrderCustomerId;
+  private int newOrderProductId;
+  private int newOrderQuantity;
+  private string? createStatusMessage;
+  private string? cancelStatusMessage;
+
+  protected override async Task OnInitializedAsync()
+  {
+    orders = await Api.GetOrdersAsync();
+  }
+
+  private async Task CreateOrderAsync()
+  {
+    if (newOrderCustomerId <= 0 || newOrderProductId <= 0 || newOrderQuantity <= 0)
+    {
+      createStatusMessage = "Customer ID, Product ID and Quantity must be greater than 0.";
+      return;
+    }
+
+    try
+    {
+      var request = new CreateOrderDto
+      {
+        CustomerId = newOrderCustomerId,
+        ProductId = newOrderProductId,
+        Quantity = newOrderQuantity
+      };
+
+      await Api.CreateOrderAsync(request);
+      orders = await Api.GetOrdersAsync();
+
+      newOrderCustomerId = 0;
+      newOrderProductId = 0;
+      newOrderQuantity = 0;
+      createStatusMessage = "Order created.";
+    }
+    catch (Exception ex)
+    {
+      createStatusMessage = $"Create failed: {ex.Message}";
+    }
+  }
+
+  private async Task CancelOrderAsync(int orderId)
+  {
+    try
+    {
+      await Api.CancelOrderAsync(orderId);
+      orders = await Api.GetOrdersAsync();
+      cancelStatusMessage = $"Order #{orderId} cancelled.";
+    }
+    catch (Exception ex)
+    {
+      cancelStatusMessage = $"Cancel failed: {ex.Message}";
+    }
+  }
+}

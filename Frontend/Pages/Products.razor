@@ -1,0 +1,121 @@
+@page "/products"
+
+@inject ApiService Api
+
+<h3>Products</h3>
+
+@if (products == null)
+{
+  <p>Loading...</p>
+}
+else
+{
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var product in products)
+        {
+          <tr>
+            <td>@product.Id</td>
+            <td>@product.Name</td>
+            <td>$@product.Price</td>
+            <td>@product.Stock</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<hr />
+
+<h4>Add Product</h4>
+
+<div class="container">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Name</label>
+      <InputText class="form-control" @bind-Value="newProductName" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Price</label>
+      <InputNumber class="form-control no-spinner" @bind-Value="newProductPrice" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Stock</label>
+      <InputNumber class="form-control no-spinner" @bind-Value="newProductStock" />
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary" @onclick="AddProductAsync">Add</button>
+    </div>
+  </div>
+
+  @if (!string.IsNullOrWhiteSpace(addStatusMessage))
+  {
+    <p class="mt-2">@addStatusMessage</p>
+  }
+</div>
+
+<style>
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+</style>
+
+@code {
+  private List<ProductDto> products;
+  private string newProductName = string.Empty;
+  private decimal newProductPrice;
+  private int newProductStock;
+  private string? addStatusMessage;
+
+  protected override async Task OnInitializedAsync()
+  {
+    products = await Api.GetProductsAsync();
+  }
+
+  private async Task AddProductAsync()
+  {
+    if (string.IsNullOrWhiteSpace(newProductName))
+    {
+      addStatusMessage = "Name is required.";
+      return;
+    }
+
+    try
+    {
+      var newProduct = new ProductDto
+      {
+        Name = newProductName,
+        Price = newProductPrice,
+        Stock = newProductStock
+      };
+
+      await Api.AddProductAsync(newProduct);
+      products = await Api.GetProductsAsync();
+
+      newProductName = string.Empty;
+      newProductPrice = 0;
+      newProductStock = 0;
+      addStatusMessage = "Product added.";
+    }
+    catch (Exception ex)
+    {
+      addStatusMessage = $"Add failed: {ex.Message}";
+    }
+  }
+}

@@ -1,4 +1,5 @@
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 using ProductService.Api.Data;
@@ -56,20 +57,44 @@ namespace ProductService.Services
                 _channel.QueueDeclare("order_cancelled", true, false, false, null);
                 Console.WriteLine("✅ Cancelled queue declared");
 
-                Console.WriteLine("Waiting for orders (polling mode)...");
+                _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 
-                // Poll messages every 2 seconds so queue ready count is observable in RabbitMQ UI.
-                _ = Task.Run(() =>
+                var orderCreatedConsumer = new EventingBasicConsumer(_channel);
+                orderCreatedConsumer.Received += (_, ea) =>
                 {
-                    while (true)
+                    try
                     {
-                        ConsumeOrderCreated();
-                        ConsumeOrderCancelled();
-                        Thread.Sleep(2000);
+                        var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+                        ProcessOrderCreatedMessage(message);
+                        _channel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
-                });
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"❌ Error processing order_created: {ex.Message}");
+                        _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+                    }
+                };
 
-                Console.WriteLine("✅ Polling consumer started for queues: order_created, order_cancelled");
+                var orderCancelledConsumer = new EventingBasicConsumer(_channel);
+                orderCancelledConsumer.Received += (_, ea) =>
+                {
+                    try
+                    {
+                        var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+                        ProcessOrderCancelledMessage(message);
+                        _channel.BasicAck(ea.DeliveryTag, multiple: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"❌ Error processing order_cancelled: {ex.Message}");
+                        _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+                    }
+                };
+
+                _channel.BasicConsume(queue: "order_created", autoAck: false, consumer: orderCreatedConsumer);
+                _channel.BasicConsume(queue: "order_cancelled", autoAck: false, consumer: orderCancelledConsumer);
+
+                Console.WriteLine("✅ BasicConsume started for queues: order_created, order_cancelled");
             }
             catch (Exception ex)
             {
@@ -78,82 +103,46 @@ namespace ProductService.Services
             }
         }
 
-        private void ConsumeOrderCreated()
+        private void ProcessOrderCreatedMessage(string message)
         {
-            if (_channel == null)
-                return;
+            Console.WriteLine($"🔥 Order received: {message}");
 
-            var result = _channel.BasicGet("order_created", autoAck: false);
-            if (result == null)
-                return;
-
-            try
+            var order = JsonSerializer.Deserialize<OrderCreatedEventDto>(message);
+            if (order != null)
             {
-                var message = Encoding.UTF8.GetString(result.Body.ToArray());
-                Console.WriteLine($"🔥 Order received: {message}");
+                using var scope = _serviceProvider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
 
-                var order = JsonSerializer.Deserialize<OrderCreatedEventDto>(message);
-                if (order != null)
+                var product = db.Products.FirstOrDefault(p => p.Id == order.ProductId);
+                if (product != null)
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
+                    product.Stock -= order.Quantity;
+                    if (product.Stock < 0)
+                        product.Stock = 0;
 
-                    var product = db.Products.FirstOrDefault(p => p.Id == order.ProductId);
-                    if (product != null)
-                    {
-                        product.Stock -= order.Quantity;
-                        if (product.Stock < 0)
-                            product.Stock = 0;
-
-                        db.SaveChanges();
-                        Console.WriteLine($"✅ Stock updated: {product.Stock}");
-                    }
+                    db.SaveChanges();
+                    Console.WriteLine($"✅ Stock updated: {product.Stock}");
                 }
-
-                _channel.BasicAck(result.DeliveryTag, multiple: false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error processing order_created: {ex.Message}");
-                _channel.BasicNack(result.DeliveryTag, multiple: false, requeue: true);
             }
         }
 
-        private void ConsumeOrderCancelled()
+        private void ProcessOrderCancelledMessage(string message)
         {
-            if (_channel == null)
-                return;
+            Console.WriteLine($"🔥🔥🔥 Order cancelled event received: {message}");
 
-            var result = _channel.BasicGet("order_cancelled", autoAck: false);
-            if (result == null)
-                return;
-
-            try
+            var order = JsonSerializer.Deserialize<OrderCancelledEventDto>(message);
+            if (order != null)
             {
-                var message = Encoding.UTF8.GetString(result.Body.ToArray());
-                Console.WriteLine($"🔥🔥🔥 Order cancelled event received: {message}");
+                using var scope = _serviceProvider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
 
-                var order = JsonSerializer.Deserialize<OrderCancelledEventDto>(message);
-                if (order != null)
+                var product = db.Products.FirstOrDefault(p => p.Id == order.ProductId);
+                if (product != null)
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
-
-                    var product = db.Products.FirstOrDefault(p => p.Id == order.ProductId);
-                    if (product != null)
-                    {
-                        product.Stock += order.Quantity;
-                        db.SaveChanges();
-                        Console.WriteLine($"✅ Stock restored: {product.Stock} (returned {order.Quantity} items)");
-                    }
+                    product.Stock += order.Quantity;
+                    db.SaveChanges();
+                    Console.WriteLine($"✅ Stock restored: {product.Stock} (returned {order.Quantity} items)");
                 }
-
-                _channel.BasicAck(result.DeliveryTag, multiple: false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error processing order_cancelled: {ex.Message}");
-                _channel.BasicNack(result.DeliveryTag, multiple: false, requeue: true);
             }
         }
     }

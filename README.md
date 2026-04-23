@@ -1,6 +1,46 @@
-# Containerized E-Commerce Microservices Backend
+# Full-Stack Extension of Containerized E-Commerce Microservices System using Blazor
 
-Midterm project built with ASP.NET Core and SQLite.
+This repository contains the original containerized e-commerce microservices backend and the final full-stack extension with a Blazor frontend.
+
+## Project Description
+
+This project presents a full-stack extension of a containerized e-commerce microservices system by introducing a Blazor-based frontend on top of an existing API Gateway and backend service architecture. The system demonstrates end-to-end integration across multiple independently deployed services, including product, customer, order, and payment management, while preserving the microservices design principles of loose coupling, service isolation, and gateway-mediated communication. The frontend provides a simple but functional user interface for common business operations, and the entire system is designed to run consistently through Docker Compose for straightforward local deployment and demonstration.
+
+## Final Project Module: Blazor Frontend Extension
+
+The final project extends the existing backend system with a basic Blazor WebAssembly frontend. The frontend is deployed as a separate container and communicates only through the API Gateway.
+
+### Frontend Features
+
+- View all products and add a product
+- View customers and add a customer
+- View orders and create an order
+- Cancel an order from the UI
+
+### Architecture Summary
+
+- Frontend: Blazor WebAssembly served from a separate container
+- API Gateway: Ocelot-based gateway for all frontend API calls
+- Backend services: Product, Customer, Order, and Payment services
+- Messaging: RabbitMQ for existing event-driven order/product behavior
+
+### Running the Full Stack
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+### Service Entry Points
+
+- Frontend UI: http://localhost:7010
+- API Gateway: http://localhost:7001
+- Gateway API routes: `/gateway/products`, `/gateway/customers`, `/gateway/orders`
+
+### Frontend-to-Gateway Communication
+
+The frontend uses `HttpClient` with the API Gateway base address and does not call backend services directly. All requests go through the gateway, which then forwards traffic to the corresponding microservices.
 
 ## Services
 
@@ -32,6 +72,11 @@ Service URLs:
 - Product Service: http://localhost:5002/swagger
 - Order Service: http://localhost:5003/swagger
 - Payment Service: http://localhost:5004/swagger
+
+For the final project extension:
+
+- Frontend UI: http://localhost:7010
+- API Gateway: http://localhost:7001
 
 ## Main API Routes
 

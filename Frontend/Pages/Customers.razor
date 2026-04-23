@@ -1,0 +1,100 @@
+@page "/customers"
+
+@inject ApiService Api
+
+<h3>Customers</h3>
+
+@if (customers == null)
+{
+  <p>Loading...</p>
+}
+else
+{
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var customer in customers)
+        {
+          <tr>
+            <td>@customer.Id</td>
+            <td>@customer.Name</td>
+            <td>@customer.Email</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<hr />
+
+<h4>Add Customer</h4>
+
+<div class="container">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label">Name</label>
+      <InputText class="form-control" @bind-Value="newCustomerName" />
+    </div>
+    <div class="col-md-5">
+      <label class="form-label">Email</label>
+      <InputText class="form-control" @bind-Value="newCustomerEmail" />
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary" @onclick="AddCustomerAsync">Add</button>
+    </div>
+  </div>
+
+  @if (!string.IsNullOrWhiteSpace(addStatusMessage))
+  {
+    <p class="mt-2">@addStatusMessage</p>
+  }
+</div>
+
+@code {
+  private List<CustomerDto>? customers;
+  private string newCustomerName = string.Empty;
+  private string newCustomerEmail = string.Empty;
+  private string? addStatusMessage;
+
+  protected override async Task OnInitializedAsync()
+  {
+    customers = await Api.GetCustomersAsync();
+  }
+
+  private async Task AddCustomerAsync()
+  {
+    if (string.IsNullOrWhiteSpace(newCustomerName) || string.IsNullOrWhiteSpace(newCustomerEmail))
+    {
+      addStatusMessage = "Name and email are required.";
+      return;
+    }
+
+    try
+    {
+      var newCustomer = new CustomerDto
+      {
+        Name = newCustomerName,
+        Email = newCustomerEmail
+      };
+
+      await Api.AddCustomerAsync(newCustomer);
+      customers = await Api.GetCustomersAsync();
+
+      newCustomerName = string.Empty;
+      newCustomerEmail = string.Empty;
+      addStatusMessage = "Customer added.";
+    }
+    catch (Exception ex)
+    {
+      addStatusMessage = $"Add failed: {ex.Message}";
+    }
+  }
+}
